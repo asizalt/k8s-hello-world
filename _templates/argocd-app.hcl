@@ -8,10 +8,23 @@ terraform {
 
 dependency "cluster" {
   config_path = "../cluster"
+
+  mock_outputs = {
+    cluster_name = "mock-cluster"
+    endpoint     = "https://mock"
+    kubeconfig   = "mock"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "argocd" {
   config_path = "../argocd"
+
+  mock_outputs = {
+    namespace      = "argocd"
+    argocd_version = "7.3.4"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 generate "kubernetes_provider" {
@@ -20,7 +33,7 @@ generate "kubernetes_provider" {
   contents  = <<EOF
 provider "kubernetes" {
   config_path    = pathexpand("~/.kube/config")
-  config_context = "kind-${dependency.cluster.outputs.cluster_name}"
+  config_context = "kind-${local.env.cluster_name}"
 }
 EOF
 }
