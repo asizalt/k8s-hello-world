@@ -1,6 +1,3 @@
-# Default values for hello-app.
-# Actual values are passed by Terraform via ArgoCD helm.parameters —
-# these defaults are only used when running helm install/template directly.
 replicaCount: 1
 
 image: nginx:alpine
@@ -14,6 +11,12 @@ containerPort: 80
 
 appName: hello-app
 
+# Resource requests guarantee minimum CPU/memory for the pod.
+# Resource limits cap usage to prevent a runaway process starving other pods.
+# Reasoning:
+#   nginx serving a static page is extremely lightweight.
+#   50m CPU / 64Mi RAM is enough for hundreds of req/s on a hello-world workload.
+#   Limits are set at 2x requests to allow short bursts without risk.
 resources:
   requests:
     cpu: 50m
