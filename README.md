@@ -5,25 +5,24 @@ A "Hello World" HTTP service deployed to a local kind cluster via ArgoCD, with i
 ## Architecture
 
 ```
-terragrunt run-all apply (envs/dev/)
+envs/dev/env.hcl  (image, replicas, port)
     │
-    ├── cluster/      → creates kind cluster (1 control-plane + 2 workers)
+    ▼
+terragrunt run --all apply
     │
-    ├── argocd/       → installs ArgoCD into the cluster via Helm
-    │   (depends on cluster)
+    ├── cluster/   → creates kind cluster (1 control-plane + 2 workers)
+    ├── argocd/    → installs ArgoCD into the cluster via Helm
+    └── app/       → generates helm/hello-app/values.yaml
     │
-    └── argocd-app/   → registers the ArgoCD Application with image/replicas/port
-        (depends on cluster + argocd)    passed directly as Helm parameters
-                │
-                ▼
-        ArgoCD pulls chart templates from Git
-        + applies Terraform-supplied values
-                │
-                ▼
-            kind cluster
+    ▼
+git push (values.yaml committed to main)
+    │
+    ▼
+ArgoCD reads Helm chart + values.yaml from Git
+    │
+    ▼
+deploys to kind cluster
 ```
-
-No `values.yaml` generation or Git push required — Terraform passes config directly into the ArgoCD Application spec.
 
 ---
 
@@ -58,34 +57,48 @@ winget install --id argoproj.argocd
 
 ```bash
 cd envs/dev
-terragrunt run-all init
-terragrunt run-all apply
+terragrunt run --all init
+terragrunt run --all apply
 ```
 
 This runs all three modules in dependency order:
 1. Creates the kind cluster (1 control-plane + 2 workers)
 2. Installs ArgoCD via Helm
-3. Registers the ArgoCD Application — ArgoCD immediately starts syncing
+3. Generates `helm/hello-app/values.yaml`
 
 ---
 
-## Step 2 — Verify the deployment
+## Step 2 — Push values.yaml to Git
 
-Check sync status:
+ArgoCD reads from Git, so commit and push the generated values file:
 
 ```bash
-argocd app get hello-app
+git add helm/hello-app/values.yaml
+git commit -m "chore: update generated helm values"
+git push origin main
 ```
 
-Or open the ArgoCD UI:
+---
+
+## Step 3 — Apply the ArgoCD Application manifest
+
+```bash
+kubectl apply -f argocd/hello-app.yaml
+```
+
+ArgoCD will now watch the Git repo and automatically deploy the Helm chart.
+
+---
+
+## Step 4 — Verify the deployment
+
+Open the ArgoCD UI:
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-Visit https://localhost:8080 in your browser.
-
-Get the initial admin password:
+Visit https://localhost:8080. Get the initial admin password:
 
 ```bash
 argocd admin initial-password -n argocd
@@ -93,7 +106,7 @@ argocd admin initial-password -n argocd
 
 ---
 
-## Step 3 — Access the app
+## Step 5 — Access the app
 
 ```bash
 kubectl port-forward svc/hello-app -n hello-app 8888:80
@@ -103,30 +116,34 @@ Open http://localhost:8888 — you should see the nginx welcome page.
 
 ---
 
+## Making Changes
+
+Edit `envs/dev/env.hcl`:
+
+```hcl
+image    = "nginx:alpine"
+replicas = 2
+port     = 80
+```
+
+Then:
+```bash
+terragrunt run --all apply
+git add helm/hello-app/values.yaml
+git commit -m "chore: update helm values"
+git push origin main
+```
+
+ArgoCD detects the new commit and re-syncs automatically.
+
+---
+
 ## Teardown
 
 ```bash
 cd envs/dev
-terragrunt run-all destroy
+terragrunt run --all destroy
 ```
-
-Destroys in reverse dependency order: argocd-app → argocd → cluster.
-
----
-
-## Changing the app config
-
-All config lives in `envs/dev/argocd-app/terragrunt.hcl`:
-
-```hcl
-inputs = {
-  image    = "nginx:alpine"
-  replicas = 2
-  port     = 80
-}
-```
-
-Change a value and re-run `terragrunt apply` — Terraform updates the ArgoCD Application, ArgoCD re-syncs automatically.
 
 ---
 
@@ -134,36 +151,32 @@ Change a value and re-run `terragrunt apply` — Terraform updates the ArgoCD Ap
 
 ```
 k8s-hello-world/
+├── _templates/                 # Shared Terragrunt templates
+│   ├── cluster.hcl
+│   ├── argocd.hcl
+│   └── app.hcl
 ├── modules/
 │   ├── kind-cluster/           # Creates a local kind cluster
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
 │   ├── argocd/                 # Installs ArgoCD via Helm
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   └── argocd-app/             # Registers ArgoCD Application with Helm parameters
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
+│   └── app/                    # Generates Helm values.yaml
+│       └── values.yaml.tpl
 ├── envs/
 │   └── dev/
+│       ├── env.hcl             # All env-specific values live here
 │       ├── cluster/
-│       │   └── terragrunt.hcl
 │       ├── argocd/
-│       │   └── terragrunt.hcl  # depends on cluster
-│       └── argocd-app/
-│           └── terragrunt.hcl  # depends on cluster + argocd
+│       └── app/
 ├── helm/
 │   └── hello-app/
 │       ├── Chart.yaml
-│       ├── values.yaml         # defaults only — real values come from Terraform
+│       ├── values.yaml         # Generated by terragrunt apply
 │       └── templates/
 │           ├── deployment.yaml
 │           ├── service.yaml
 │           ├── networkpolicy.yaml
 │           └── _helpers.tpl
+├── argocd/
+│   └── hello-app.yaml          # ArgoCD Application manifest
 ├── .github/
 │   └── workflows/
 │       └── lint.yml            # Helm lint on push/PR
