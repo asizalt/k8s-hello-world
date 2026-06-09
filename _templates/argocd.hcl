@@ -8,6 +8,13 @@ terraform {
 
 dependency "cluster" {
   config_path = "../cluster"
+
+  mock_outputs = {
+    cluster_name = "mock-cluster"
+    endpoint     = "https://mock"
+    kubeconfig   = "mock"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 generate "helm_provider" {
@@ -17,7 +24,7 @@ generate "helm_provider" {
 provider "helm" {
   kubernetes {
     config_path    = pathexpand("~/.kube/config")
-    config_context = "kind-${dependency.cluster.outputs.cluster_name}"
+    config_context = "kind-${local.env.cluster_name}"
   }
 }
 EOF
