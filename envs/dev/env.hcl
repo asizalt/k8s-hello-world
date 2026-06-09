@@ -11,6 +11,7 @@ locals {
   chart_path      = "helm/hello-app"
   app_namespace   = "hello-app"
 
+  app_name = "hello-app"
   image    = "nginx:alpine"
   replicas = 2
   port     = 80
