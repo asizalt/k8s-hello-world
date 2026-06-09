@@ -1,0 +1,26 @@
+# Default values for hello-app.
+# Actual values are passed by Terraform via ArgoCD helm.parameters —
+# these defaults are only used when running helm install/template directly.
+replicaCount: 1
+
+image: nginx:alpine
+imagePullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+containerPort: 80
+
+appName: hello-app
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+networkPolicy:
+  enabled: true
