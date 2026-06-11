@@ -13,6 +13,6 @@ locals {
 
   app_name = "hello-app"
   image    = "nginx:alpine"
-  replicas = 2
+  replicas = 1
   port     = 80
 }

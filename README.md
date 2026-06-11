@@ -45,11 +45,47 @@ winget install --id argoproj.argocd
 
 ### macOS
 
-> TODO: add macOS (brew) instructions
+```bash
+brew install terraform
+brew install terragrunt
+brew install helm
+brew install kubectl
+brew install argocd
+```
+
+> Docker Desktop must also be installed and running.
+> kind: `brew install kind`
 
 ### Linux
 
-> TODO: add Linux instructions
+```bash
+# Terraform
+sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt-get update && sudo apt-get install terraform
+
+# Terragrunt
+curl -sSLo /usr/local/bin/terragrunt https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_amd64
+chmod +x /usr/local/bin/terragrunt
+
+# Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# ArgoCD CLI
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
+
+# kind
+curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+chmod +x /usr/local/bin/kind
+```
+
+> Docker must be installed and running.
 
 ---
 
@@ -81,6 +117,12 @@ git push origin main
 ---
 
 ## Step 3 — Apply the ArgoCD Application manifest
+
+> **If you forked this repo**, update `repoURL` in `argocd/hello-app.yaml` to point to your fork before applying:
+> ```yaml
+> source:
+>   repoURL: https://github.com/<your-username>/k8s-hello-world
+> ```
 
 ```bash
 kubectl apply -f argocd/hello-app.yaml
@@ -122,7 +164,7 @@ Edit `envs/dev/env.hcl`:
 
 ```hcl
 image    = "nginx:alpine"
-replicas = 2
+replicas = 1
 port     = 80
 ```
 
@@ -176,7 +218,7 @@ k8s-hello-world/
 │           ├── networkpolicy.yaml
 │           └── _helpers.tpl
 ├── argocd/
-│   └── hello-app.yaml          # ArgoCD Application manifest
+│   └── hello-app.yaml          # ArgoCD Application manifest (applied manually)
 ├── .github/
 │   └── workflows/
 │       └── lint.yml            # Helm lint on push/PR
